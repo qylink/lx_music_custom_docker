@@ -1,0 +1,21 @@
+node_modules/
+data/db.sqlite
+data/db.sqlite-*
+data/logs/*
+data/sources/*
+!data/sources/.gitkeep
+data/music/*
+!data/music/.gitkeep
+data/config.json
+.env
+.git/
+.idea/
+.vscode/
+*.log
+# Docker image artifacts (binary, large, not for git)
+*.tar
+*.tar.gz
+# 本地辅助脚本（AI 生成的部署/测试脚本），不提交
+dev_debug_script/
+# 本地部署工具（含内网地址/凭据），永不入库
+scripts/

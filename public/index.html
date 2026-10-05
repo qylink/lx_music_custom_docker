@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LX Music Docker · 洛雪音乐</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231b1f3a'/%3E%3Cpath d='M22 18v22a8 8 0 1 0 6 7.7V26h12v-8z' fill='%23ffd166'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo"></span>
+    <h1>LX Music · Docker</h1>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="sources">音源管理</button>
+    <button class="tab" data-tab="search">搜索</button>
+    <button class="tab" data-tab="playlist">歌单导入</button>
+    <button class="tab" data-tab="download">下载管理</button>
+    <button class="tab" data-tab="files">下载文件</button>
+    <button class="tab" data-tab="settings">系统</button>
+  </nav>
+  <div class="health" id="health"><span class="dot"></span>连接中...</div>
+</header>
+
+<main>
+  <!-- ============== 音源管理 ============== -->
+  <section class="panel active" data-panel="sources">
+    <div class="card" id="srcAddCard">
+      <details id="srcAddDetails" open>
+        <summary>
+          <h2 style="display:inline;margin:0;">添加音源（粘贴脚本 / 远程 URL）</h2>
+          <span class="muted" style="margin-left:.4em;">点击折叠</span>
+        </summary>
+        <p class="muted">兼容洛雪音源脚本格式（CommonJS，导出 <code>{ info, musicSearch, musicUrl, lyric, pic }</code>）。</p>
+        <div class="row">
+          <label>文件名<input id="srcFileName" placeholder="kw-mg.js"></label>
+          <label class="flex2">脚本内容<textarea id="srcContent" rows="8" placeholder="// 直接粘贴 LX 音源脚本，需要 module.exports = { info, musicSearch, musicUrl }"></textarea></label>
+        </div>
+        <div class="row">
+          <button id="btnAddSource" class="primary">添加</button>
+          <details style="flex:1;min-width:280px;">
+            <summary>或从远程 URL 拉取</summary>
+            <div class="row" style="margin-top:.5em;">
+              <input id="srcUrl" placeholder="https://raw.githubusercontent.com/.../xxx.js" style="flex:1;">
+              <button id="btnAddSourceUrl">拉取并添加</button>
+            </div>
+          </details>
+        </div>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>当前音源<span class="muted" id="srcCount"></span></h2>
+      <div class="row" style="margin-bottom:.6em;">
+        <button id="btnSrcEnableAll" class="secondary">全部启用</button>
+        <button id="btnSrcDisableAll" class="secondary">全部禁用</button>
+        <label style="margin-left:auto;">排序
+          <select id="srcSort">
+            <option value="default">默认</option>
+            <option value="name">按名称</option>
+            <option value="type">按类型</option>
+          </select>
+        </label>
+      </div>
+      <div id="sourceList" class="grid"></div>
+    </div>
+  </section>
+
+  <!-- ============== 搜索 ============== -->
+  <section class="panel" data-panel="search">
+    <div class="card">
+      <h2>搜索 / 全网找歌</h2>
+      <p class="muted">跨所有启用音源搜索（按洛雪 findMusic 算法排序）。找到后可直接下载，或按「+ 加入下载」。结果里的音源即实际下载源。</p>
+      <div class="row">
+        <label>歌名
+          <input id="searchKey" placeholder="例如 晴天" list="searchHistoryList">
+          <datalist id="searchHistoryList"></datalist>
+          <button id="btnSearchHistory" class="secondary" style="font-size:.8em;" title="查看/清空搜索历史">历史</button>
+        </label>
+        <label>歌手<input id="searchSinger" placeholder="可选，例如 周杰伦"></label>
+        <label>音质
+          <select id="searchQuality">
+            <option value="128">128k</option>
+            <option value="192">192k</option>
+            <option value="320" selected>320k</option>
+            <option value="flac">FLAC</option>
+          </select>
+        </label>
+        <button id="btnSearch" class="primary">搜索</button>
+      </div>
+      <div class="search-tabs" id="searchTabs"></div>
+      <div class="row" style="margin-top:.5em;">
+        <button id="btnSearchDlAll" class="secondary">全部下载</button>
+        <span class="muted" id="searchStats"></span>
+      </div>
+      <table class="songs">
+        <thead>
+          <tr><th>#</th><th>歌曲</th><th>艺人</th><th>专辑</th><th>时长</th><th>来源</th><th></th></tr>
+        </thead>
+        <tbody id="searchBody"><tr><td colspan="7" class="muted" style="text-align:center;padding:2em;">输入歌名点「搜索」。</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============== 歌单导入 ============== -->
+  <section class="panel" data-panel="playlist">
+    <div class="card">
+      <h2>网易云音乐歌单导入</h2>
+      <p class="muted">支持公开歌单。把歌单 ID 或完整链接贴到下方即可。</p>
+      <div class="row">
+        <input id="plInput" placeholder="例如 https://music.163.com/playlist?id=123456 或 123456" style="flex:1;">
+        <button id="btnImportPl" class="primary">导入</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>当前导入的歌单</h2>
+      <div id="playlistList" class="grid"></div>
+    </div>
+
+    <div class="card" id="playlistDetail" style="display:none;">
+      <h2>歌单详情：<span id="plDetailTitle"></span></h2>
+      <div class="row">
+        <button id="btnSelectAll" class="secondary">全选</button>
+        <button id="btnSelectNone" class="secondary">取消</button>
+        <button id="btnMatchSongs" class="secondary">查找音源</button>
+        <button id="btnEnqueue" class="primary">批量下载所选项</button>
+      </div>
+      <div class="row">
+        <label>下载音源
+          <select id="matchSource"></select>
+        </label>
+        <label>音质
+          <select id="quality">
+            <option value="128">128k</option>
+            <option value="192">192k</option>
+            <option value="320" selected>320k</option>
+            <option value="flac">FLAC</option>
+            <option value="kw">酷我</option>
+            <option value="kg">酷狗</option>
+            <option value="tx">企鹅</option>
+          </select>
+        </label>
+      </div>
+      <table class="songs">
+        <thead>
+          <tr><th><input type="checkbox" id="plCheckAll"></th><th>#</th><th>歌曲</th><th>艺人</th><th>专辑</th><th>时长</th><th>匹配音源</th></tr>
+        </thead>
+        <tbody id="plTrackBody"></tbody>
+      </table>
+      <div class="pager">
+        <div class="pager-group">
+          <button id="plPageFirst" class="secondary" title="首页">«</button>
+          <button id="plPagePrev" class="secondary">‹ 上一页</button>
+          <span id="plPageInfo" class="muted">1 / 1</span>
+          <button id="plPageNext" class="secondary">下一页 ›</button>
+          <button id="plPageLast" class="secondary" title="末页">»</button>
+        </div>
+        <div class="pager-group">
+          <label class="pager-label">每页
+            <select id="plPageSize">
+              <option value="50">50</option>
+              <option value="100" selected>100</option>
+              <option value="200">200</option>
+              <option value="500">500</option>
+            </select>
+          </label>
+        </div>
+        <div class="pager-group">
+          <input id="plPageGoto" type="number" min="1" placeholder="页码" style="width:70px;">
+          <button id="plPageJumpBtn" class="secondary">跳转</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== 下载管理 ============== -->
+  <section class="panel" data-panel="download">
+    <div id="neteaseBanner" class="hidden" style="background:var(--warn);color:#18122b;padding:.7em 1em;border-radius:8px;margin-bottom:.8em;font-size:.92em"></div>
+    <div class="card">
+      <h2>下载任务<span class="muted" id="dlStats"></span></h2>
+      <div class="row">
+        <button id="btnRetryAll" class="secondary">重试失败项</button>
+        <button id="btnRefreshDl" class="secondary">刷新</button>
+      </div>
+      <div id="progress-list" class="progress-list"></div>
+      <table class="songs">
+        <thead>
+          <tr><th>ID</th><th>歌曲</th><th>艺人</th><th>状态/详情</th><th>大小</th><th></th></tr>
+        </thead>
+        <tbody id="dlBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============== 下载文件 ============== -->
+  <section class="panel" data-panel="files">
+    <div class="card">
+      <h2>下载文件<span class="muted" id="fileInfo"></span></h2>
+      <div class="row">
+        <label class="flex2">搜索
+          <input type="search" id="fileSearch" placeholder="输入歌曲名或路径筛选...">
+        </label>
+        <button id="btnFileSearch" class="secondary">搜索</button>
+        <button id="btnRefreshFiles" class="secondary">刷新</button>
+      </div>
+      <table class="songs">
+        <thead>
+          <tr><th>文件</th><th>路径</th><th>大小</th><th>修改时间</th><th></th></tr>
+        </thead>
+        <tbody id="fileBody"></tbody>
+      </table>
+      <div class="pager" id="filePager" style="display:none;">
+        <div class="pager-group">
+          <button id="filePrev" class="secondary">上一页</button>
+          <span id="filePageInfo" class="muted"></span>
+          <button id="fileNext" class="secondary">下一页</button>
+        </div>
+        <div class="pager-group">
+          <label class="pager-label">每页
+            <select id="filePageSize">
+              <option value="20">20</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== 设置 ============== -->
+  <section class="panel" data-panel="settings">
+    <div class="card">
+      <h2>运行信息</h2>
+      <pre id="sysInfo" class="pre"></pre>
+    </div>
+
+    <div class="card">
+      <h2>
+        运行日志
+        <span class="muted" id="logInfo">(加载中...)</span>
+      </h2>
+      <div class="row" style="margin-bottom:.6em;">
+        <label>级别筛选
+          <select id="logLevel">
+            <option value="">全部</option>
+            <option value="info">info</option>
+            <option value="warn">warn</option>
+            <option value="error">error</option>
+            <option value="fatal">fatal</option>
+          </select>
+        </label>
+        <label class="flex2">行数
+          <select id="logLimit">
+            <option value="100">100</option>
+            <option value="300">300</option>
+            <option value="500">500</option>
+            <option value="1000" selected>1000</option>
+          </select>
+        </label>
+        <button id="logRefresh" class="secondary">手动刷新</button>
+        <button id="logAuto" class="secondary">⏸ 暂停自动</button>
+        <button id="logDownload" class="secondary">下载日志</button>
+        <button id="logClear" class="danger">清空</button>
+      </div>
+      <pre id="logBox" class="pre logbox"></pre>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<dialog id="srcDialog"><pre id="srcDialogCode"></pre><button onclick="document.getElementById('srcDialog').close()">关闭</button></dialog>
+
+<dialog id="importDlg">
+  <h3 id="importDlgTitle">导入歌单中...</h3>
+  <div class="progress" style="height:18px;margin:.6em 0;"><span id="importDlgBar" style="width:0%"></span></div>
+  <p id="importDlgText" class="muted">准备中...</p>
+  <p id="importDlgCount" class="muted"></p>
+  <div class="row" style="margin-top:1em;justify-content:flex-end;">
+    <button id="importDlgClose" class="secondary" disabled>关闭</button>
+  </div>
+</dialog>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+name: lx-music-docker
+
+services:
+  lx-music:
+    # 版本号与 package.json version 保持一致。改代码后需同步更新两处，再 build + up 生效。
+    # 默认镜像走 Docker Hub；本地构建用 `docker compose up -d --build`（build 段）。
+    # 私有仓库/局域网部署可在 .env 里设置 LX_IMAGE 覆盖。
+    image: ${LX_IMAGE:-qylinkdc/lx_music_custom_docker:1.5.0}
+    build: .
+    container_name: ${APP_NAME:-lx-music-docker}
+    restart: unless-stopped
+    hostname: lx-music-docker
+    # host 网络模式：容器共享宿主网络栈，DNS /路由 / 出口与宿主完全一致
+    # （飞牛路由的 DNS 污染问题自然规避）
+    network_mode: host
+    # 删除 ports 段（host 模式下 port mapping 不生效）
+    environment:
+      TZ: "${TZ:-Asia/Shanghai}"
+      HOST: 0.0.0.0
+      PORT: "${HTTP_PORT:-3210}"
+      NETEASE_MUSIC_U: "${NETEASE_MUSIC_U:-}"
+      NETEASE_USER_AGENT: "${NETEASE_USER_AGENT:-}"
+      DOWNLOAD_CONCURRENCY: "${DOWNLOAD_CONCURRENCY:-3}"
+      DOWNLOAD_QUALITY: "${DOWNLOAD_QUALITY:-320}"
+      DOWNLOAD_TIMEOUT: "${DOWNLOAD_TIMEOUT:-90000}"
+      DOWNLOAD_JITTER_MIN_MS: "${DOWNLOAD_JITTER_MIN_MS:-200}"
+      DOWNLOAD_JITTER_MAX_MS: "${DOWNLOAD_JITTER_MAX_MS:-800}"
+      MAX_RETRIES_PER_SOURCE: "${MAX_RETRIES_PER_SOURCE:-2}"
+      MAX_ATTEMPTS_PER_SOURCE: "${MAX_ATTEMPTS_PER_SOURCE:-4}"
+      SOURCE_CALL_TIMEOUT: "${SOURCE_CALL_TIMEOUT:-15000}"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+    volumes:
+      - ${DATA_BIND:-./data}:/app/data
+      - ${MUSIC_BIND:-./data/music}:/app/data/music
+      - ${SOURCES_BIND:-./data/sources}:/app/data/sources
+    labels:
+      org.opencontainers.image.title: "lx-music-docker"
+      org.opencontainers.image.description: "洛雪音乐 Docker 版 - 飞牛 OS 上添加音源 / 导入网易云歌单 / 批量下载"
+      com.fnos.app: "lx-music-docker"
+      com.fnos.category: "music"
+      com.fnos.port: "${HTTP_PORT:-3210}"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:${HTTP_PORT:-3210}/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
